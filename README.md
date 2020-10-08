@@ -4,7 +4,7 @@ Windows includes built-in adjustment for internal screens (e.g. laptops), but no
 
 This program places an icon in the Windows taskbar notification area (system tray) to adjust display brightness, both for external monitors (via DDC/CI) and internal screens (via WMI).
 
-Usage: Download from *Releases* and run the program `brightly.exe`. An icon for *Brightly* will appear in the taskbar notification area. Left-click the icon to show sliders for brightness for connected displays (screens that do not support brightness adjustment over DDC/CI or WMI will be greyed out).  
+Usage: Download from [Releases](https://github.com/danielgjackson/brightly/releases/latest) and run the program `brightly.exe`. An icon for *Brightly* will appear in the taskbar notification area. Left-click the icon to show sliders for brightness for connected displays (screens that do not support brightness adjustment over DDC/CI or WMI will be greyed out).  
 
 Right-click the icon for a menu:
 
