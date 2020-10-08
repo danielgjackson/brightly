@@ -1,0 +1,33 @@
+#include <windows.h>
+//#include <winuser.h>
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "brightly.exe.manifest"
+MAINICON ICON "icon.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION             1,0,0,0
+PRODUCTVERSION          1,0,0,0
+FILEFLAGSMASK           VS_FFI_FILEFLAGSMASK
+FILEFLAGS               0
+FILEOS                  VOS_NT
+FILETYPE                VFT_APP
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904E4"
+        BEGIN
+		VALUE "Comments",         "Monitor brightness adjustment in the taskbar notification area (system tray)"
+		VALUE "CompanyName",      "danielgjackson"
+		VALUE "FileDescription",  "Brightly Monitor Brightness Adjustment"
+		VALUE "FileVersion",      "V1.0.0.0"
+		VALUE "InternalName",     "brightly"
+		VALUE "LegalCopyright",   "(C)2020 Daniel Jackson (MIT License)"
+		VALUE "OriginalFilename", "brightly.exe"
+		VALUE "ProductName",      "Brightly"
+		VALUE "ProductVersion",	  "V1.0.0.0"
+        END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x0809,1200
+	END
+END
