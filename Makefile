@@ -7,7 +7,7 @@
 BIN_NAME = brightly.exe
 CC = x86_64-w64-mingw32-gcc
 CFLAGS = -m64 -O3 -Wall -municode -DUNICODE -D_UNICODE
-LIBS = -luser32 -lgdi32 -lcomctl32 -lshell32 -ladvapi32 -lcomdlg32 -lole32 -loleaut32 -lwbemuuid -ldxva2
+LIBS = -luser32 -lgdi32 -lcomctl32 -lshell32 -ladvapi32 -lcomdlg32 -lole32 -loleaut32 -lwbemuuid -ldxva2 -lversion
 
 RES = $(wildcard *.rc)
 SRC = $(wildcard *.c)

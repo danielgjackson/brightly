@@ -30,6 +30,7 @@
 #pragma comment(lib, "shell32.lib")  	// Shell_NotifyIcon()
 #pragma comment(lib, "advapi32.lib") 	// RegOpenKeyEx(), RegSetValueEx(), RegGetValue(), RegDeleteValue(), RegCloseKey()
 #pragma comment(lib, "Comdlg32.lib") 	// GetSaveFileName()
+#pragma comment(lib, "Version.lib")		// GetFileVersionInfoSize(), GetFileVersionInfo(), VerQueryValue()
 #pragma comment(lib, "gdi32.lib")		// CreateFontIndirect()
 #pragma comment(lib, "User32.lib")		// Windows
 #endif
@@ -62,6 +63,7 @@ BOOL gbSubsystemWindows = FALSE;
 BOOL gbHasConsole = FALSE;
 BOOL gbImmediatelyExit = FALSE;	// Quit right away (mainly for testing)
 BOOL gbExiting = FALSE;
+int gVersion[4] = { 0, 0, 0, 0 };
 
 NOTIFYICONDATA nid = {0};
 
@@ -111,13 +113,16 @@ BOOL AddNotificationIcon(HWND hwnd)
 	nid.hWnd = hwnd;
 	nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
 	nid.uFlags |= NIS_HIDDEN;
-	nid.dwStateMask = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP | NIS_HIDDEN;
+	nid.dwStateMask = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
 	if (gbNotify)
 	{
 		nid.uFlags |= NIF_INFO | NIF_REALTIME;
 		_tcscpy(nid.szInfoTitle, TITLE);
 		_tcscpy(nid.szInfo, TEXT("Running in notification area."));
 		nid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
+
+		nid.hBalloonIcon = LoadIcon(ghInstance, TEXT("MAINICON"));
+		nid.dwInfoFlags |= NIIF_LARGE_ICON | NIIF_USER;
 	}
 	memset(&nid.guidItem, 0, sizeof(nid.guidItem));
 	nid.uID = idMinimizeIcon;
@@ -392,6 +397,15 @@ void Shutdown(void)
 	_tprintf(TEXT("...END: Shutdown()\n"));
 }
 
+// Open hyperlink from TaskDialog
+HRESULT CALLBACK TaskDialogCallback(HWND hwnd, UINT uNotification, WPARAM wParam, LPARAM lParam, LONG_PTR dwRefData)
+{
+	if (uNotification == TDN_HYPERLINK_CLICKED)
+	{
+		ShellExecute(hwnd, TEXT("open"), (TCHAR *)lParam, NULL, NULL, SW_SHOW);
+	}
+	return 0;
+}
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -463,7 +477,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 					time_t now;
 					time(&now);
 					struct tm *local = localtime(&now);
-					_sntprintf(szFileName, sizeof(szFileName) / sizeof(szFileName[0]), TEXT("brightly_%04d-%02d-%02d_%02d-%02d-%02d.txt"), local->tm_year + 1900, local->tm_mon + 1, local->tm_mday, local->tm_hour, local->tm_min, local->tm_sec);
+					_sntprintf(szFileName, sizeof(szFileName) / sizeof(szFileName[0]), TEXT("" TITLE "_%04d-%02d-%02d_%02d-%02d-%02d.txt"), local->tm_year + 1900, local->tm_mon + 1, local->tm_mday, local->tm_hour, local->tm_min, local->tm_sec);
 
 					OPENFILENAME openFilename = {0};
 					openFilename.lStructSize = sizeof(openFilename);
@@ -500,9 +514,46 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			case IDM_ABOUT:
 				{
-					TCHAR *szCaption = TITLE;
-					TCHAR *szAbout = TEXT("Utility to set monitor brightness.\r\n\r\nby Dan Jackson, 2020.\r\n\r\nhttps://github.com/danielgjackson/brightly");
-					MessageBoxEx(hwnd, szAbout, szCaption, MB_OK | MB_ICONINFORMATION | MB_DEFBUTTON1, 0);
+					TCHAR *szTitle = TEXT("About " TITLE);
+					TCHAR szHeader[128] = TEXT("");
+					_sntprintf(szHeader, sizeof(szHeader) / sizeof(szHeader[0]), TEXT("%s V%d.%d.%d"), TITLE, gVersion[0], gVersion[1], gVersion[2]);
+					TCHAR *szContent = TEXT("Monitor brightness adjustment in the taskbar notification area.");
+					//TCHAR *szExtraInfo = TEXT("...");
+					TCHAR *szFooter = TEXT("Open source under <a href=\"https://github.com/danielgjackson/brightly/blob/master/LICENSE.txt\">MIT License</a>, \u00A92020 Daniel Jackson.");
+					TASKDIALOG_BUTTON aCustomButtons[] = {
+						{ 1001, L"Project page\ngithub.com/danielgjackson/brightly" },
+						{ 1002, L"Check for updates\nSee the latest release" },
+					};
+					TASKDIALOGCONFIG tdc = {0};
+					tdc.cbSize = sizeof(tdc);
+					tdc.hwndParent = ghWndMain;
+					tdc.dwFlags = TDF_USE_HICON_MAIN | TDF_USE_COMMAND_LINKS | TDF_ENABLE_HYPERLINKS | TDF_EXPANDED_BY_DEFAULT | TDF_EXPAND_FOOTER_AREA | TDF_ALLOW_DIALOG_CANCELLATION;
+					tdc.pButtons = aCustomButtons;
+					tdc.cButtons = sizeof(aCustomButtons) / sizeof(aCustomButtons[0]);
+					tdc.pszWindowTitle = szTitle;
+					tdc.nDefaultButton = IDOK;
+					tdc.hMainIcon = LoadIcon(ghInstance, TEXT("MAINICON"));
+					tdc.pszMainInstruction = szHeader;
+					tdc.pszContent = szContent;
+					//tdc.pszExpandedInformation = szExtraInfo;
+					tdc.pszFooter = szFooter;
+					tdc.pszFooterIcon = TD_INFORMATION_ICON;
+					tdc.dwCommonButtons = TDCBF_OK_BUTTON;
+					tdc.pfCallback = TaskDialogCallback;
+					tdc.lpCallbackData = (LONG_PTR)NULL;	// no context needed
+					int nClickedBtn;
+					HRESULT hr = TaskDialogIndirect(&tdc, &nClickedBtn, NULL, NULL);	// nClickedBtn == IDOK
+					if (SUCCEEDED(hr))
+					{
+						if (nClickedBtn == 1001)
+						{
+							ShellExecute(hwnd, TEXT("open"), TEXT("https://github.com/danielgjackson/brightly/"), NULL, NULL, SW_SHOW);
+						}
+						else if (nClickedBtn == 1002)
+						{
+							ShellExecute(hwnd, TEXT("open"), TEXT("https://github.com/danielgjackson/brightly/releases/latest"), NULL, NULL, SW_SHOW);
+						}
+					}
 				}
 				break;
 			case IDM_EXIT:
@@ -637,18 +688,39 @@ int run(int argc, TCHAR *argv[], HINSTANCE hInstance, BOOL hasConsole)
 
 	ghInstance = hInstance;
 
+	// Get module filename
+	TCHAR szModuleFileName[MAX_PATH] = {0};
+	GetModuleFileName(NULL, szModuleFileName, sizeof(szModuleFileName) / sizeof(szModuleFileName[0]));
+
 	// Detect if the executable is named as a "PortableApps"-compatible ".paf.exe" -- ensure no registry changes, no check for updates, etc.
-	TCHAR szModuleFileName[MAX_PATH];
-	if (GetModuleFileName(NULL, szModuleFileName, sizeof(szModuleFileName) / sizeof(szModuleFileName[0])))
+	if (_tcslen(szModuleFileName) > 8)
 	{
-		int len = _tcslen(szModuleFileName);
-		if (len > 8)
+		if (_tcsicmp(szModuleFileName + _tcslen(szModuleFileName) - 8, TEXT(".paf.exe")) == 0)
 		{
-			if (_tcsicmp(szModuleFileName + len - 8, TEXT(".paf.exe")) == 0)
+			gbPortable = TRUE;
+		}
+	}
+
+	// Get module version
+	DWORD dwVerHandle = 0;
+	DWORD dwVerLen = GetFileVersionInfoSize(szModuleFileName, &dwVerHandle);
+	if (dwVerLen > 0)
+	{
+		LPVOID verData = malloc(dwVerLen);
+		if (GetFileVersionInfo(szModuleFileName, dwVerHandle, dwVerLen, verData))
+		{
+			VS_FIXEDFILEINFO *pFileInfo = NULL;
+			UINT uLenFileInfo = 0;
+			if (VerQueryValue(verData, TEXT("\\"), (LPVOID*)&pFileInfo, &uLenFileInfo))
 			{
-				gbPortable = TRUE;
+				gVersion[0] = HIWORD(pFileInfo->dwProductVersionMS);	// Major
+				gVersion[1] = LOWORD(pFileInfo->dwProductVersionMS);	// Minor
+				gVersion[2] = HIWORD(pFileInfo->dwProductVersionLS);	// Patch ('build' in MS version order)
+				gVersion[3] = LOWORD(pFileInfo->dwProductVersionLS);	// Build ('revision' in MS version order)
+				//_ftprintf(stderr, TEXT("V%u.%u.%u.%u\n"), gVersion[0], gVersion[1], gVersion[2], gVersion[3]);
 			}
 		}
+		free(verData);
 	}
 
 	BOOL bShowHelp = FALSE;
@@ -704,11 +776,8 @@ int run(int argc, TCHAR *argv[], HINSTANCE hInstance, BOOL hasConsole)
 
 	if (bShowHelp) 
 	{
-		TCHAR *msg = TEXT(
-		  "brightly  Dan Jackson, 2020.\n"
-		  "\n"
-		  "Usage: [/NOMIN|/MIN]\n"
-		  "\n");
+		TCHAR msg[512] = TEXT("");
+		_sntprintf(msg, sizeof(msg) / sizeof(msg[0]), TEXT("%s V%d.%d.%d  Daniel Jackson, 2020.\n\nUsage: [/NOMIN|/MIN]\n\n"), TITLE, gVersion[0], gVersion[1], gVersion[2]);
 		// [/CONSOLE:<ATTACH|CREATE|ATTACH-CREATE>]*  (* only as first parameter)
 		if (gbHasConsole)
 		{
@@ -749,7 +818,7 @@ int run(int argc, TCHAR *argv[], HINSTANCE hInstance, BOOL hasConsole)
 	wcex.lpszClassName	= szWindowClass;
 	RegisterClassEx(&wcex);
 
-	TCHAR szTitle[100] = TITLE;
+	TCHAR *szTitle = TITLE;
 	DWORD dwStyle = 0; // WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP | WS_VISIBLE | WS_THICKFRAME
 	DWORD dwStyleEx = WS_EX_CONTROLPARENT | WS_EX_TOOLWINDOW | WS_EX_TOPMOST; // (WS_EX_TOOLWINDOW) & ~(WS_EX_APPWINDOW);
 

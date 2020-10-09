@@ -3,9 +3,18 @@
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "brightly.exe.manifest"
 MAINICON ICON "icon.ico"
 
+// File and product versions will be identical
+#define STRINGIZE_HELPER(x) #x
+#define STRINGIZE(x) STRINGIZE_HELPER(x)
+#define VER_MAJOR 1
+#define VER_MINOR 0
+#define VER_BUILD 1			// Patch ('build' in MS version order)
+#define VER_REVISION 0		// Build ('revision' in MS version order)
+#define VER_STRING STRINGIZE(VER_MAJOR) "." STRINGIZE(VER_MINOR) "." STRINGIZE(VER_BUILD) "." STRINGIZE(VER_REVISION)
+
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION             1,0,0,0
-PRODUCTVERSION          1,0,0,0
+FILEVERSION             VER_MAJOR,VER_MINOR,VER_BUILD,VER_REVISION
+PRODUCTVERSION          VER_MAJOR,VER_MINOR,VER_BUILD,VER_REVISION
 FILEFLAGSMASK           VS_FFI_FILEFLAGSMASK
 FILEFLAGS               0
 FILEOS                  VOS_NT
@@ -18,12 +27,12 @@ BEGIN
 		VALUE "Comments",         "Monitor brightness adjustment in the taskbar notification area (system tray)"
 		VALUE "CompanyName",      "danielgjackson"
 		VALUE "FileDescription",  "Brightly Monitor Brightness Adjustment"
-		VALUE "FileVersion",      "V1.0.0.0"
+		VALUE "FileVersion",      VER_STRING
 		VALUE "InternalName",     "brightly"
 		VALUE "LegalCopyright",   "(C)2020 Daniel Jackson (MIT License)"
 		VALUE "OriginalFilename", "brightly.exe"
 		VALUE "ProductName",      "Brightly"
-		VALUE "ProductVersion",	  "V1.0.0.0"
+		VALUE "ProductVersion",	  VER_STRING
         END
 	END
 	BLOCK "VarFileInfo"
