@@ -371,6 +371,16 @@ void HideWindow(void)
 	windowOpen = false;
 }
 
+void DevicesChanged(void)
+{
+	SearchMonitors();
+	if (windowOpen)
+	{
+		RemoveControls();
+		CreateControls();
+	}
+}
+
 void StartExit(void)
 {
 	gbExiting = TRUE;
@@ -383,7 +393,7 @@ void Startup(HWND hWnd)
 
 	ghWndMain = hWnd;
 
-	SearchMonitors();
+	DevicesChanged();
 
 	AddNotificationIcon(ghWndMain);
 
@@ -418,11 +428,26 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_DISPLAYCHANGE:
 		{
 			_tprintf(TEXT("WM_DISPLAYCHANGE\n"));
-			SearchMonitors();
-			if (windowOpen)
+			DevicesChanged();
+			_tprintf(TEXT("/WM_DISPLAYCHANGE\n"));
+		}
+		break;
+
+	case WM_DEVICECHANGE:
+		{
+			if (
+				//wParam == DBT_CONFIGCHANGED || 
+				//wParam == DBT_DEVICEARRIVAL || 
+				wParam == DBT_DEVNODES_CHANGED)
 			{
-				RemoveControls();
-				CreateControls();
+				_tprintf(TEXT("WM_DEVICECHANGE:%s\n"), 
+					//wParam == DBT_CONFIGCHANGED ? TEXT("DBT_CONFIGCHANGED") :
+					//wParam == DBT_DEVICEARRIVAL ? TEXT("DBT_DEVICEARRIVAL") :
+					wParam == DBT_DEVNODES_CHANGED ? TEXT("wParam == DBT_DEVNODES_CHANGED") :
+					TEXT("?")
+				);
+				DevicesChanged();
+				_tprintf(TEXT("/WM_DEVICECHANGE\n"));
 			}
 		}
 		break;
@@ -467,7 +492,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			case IDM_REFRESH:
 				{
-					SearchMonitors();
+					DevicesChanged();
 				}
 				break;
 			case IDM_DEBUG:
