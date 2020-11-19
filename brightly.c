@@ -513,6 +513,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 					openFilename.Flags = OFN_SHOWHELP | OFN_OVERWRITEPROMPT;
 					openFilename.lpstrDefExt = (LPCWSTR)L"txt";
 					openFilename.lpstrTitle = TITLE;
+
+					// Write file to temp folder
+					TCHAR szInitialDir[MAX_PATH] = TEXT("");
+					GetTempPath(sizeof(szInitialDir), szInitialDir);
+					openFilename.lpstrInitialDir = szInitialDir[0] ? szInitialDir : NULL;
+
 					if (GetSaveFileName(&openFilename))
 					{
 						FILE *file = _tfopen(openFilename.lpstrFile, TEXT("w"));
