@@ -1,5 +1,7 @@
 # Brightly
 
+![Screenshot showing the application icon in the notification area, and a pop-up window with per-monitor brightness adjustment sliders](screenshot.png)
+
 Windows includes built-in adjustment for internal screens (e.g. laptops), but not typically for external monitors.
 
 This program places an icon in the Windows taskbar notification area (system tray) to adjust display brightness, both for external monitors (via DDC/CI) and internal screens (via WMI).
