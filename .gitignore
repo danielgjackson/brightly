@@ -5,3 +5,6 @@
 /*.pdb
 /*.ilk
 _local
+/*.wixobj
+/*.wixpdb
+/*.msi

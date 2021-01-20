@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+	<Product Name='Brightly' Id='be7c40b0-d8f0-4286-956d-5634f3272c90' UpgradeCode='bd5e84a7-0a08-4454-bb60-ce75fab29949' Language='1033' Version='1.0.1.0' Manufacturer='danielgjackson'>
+		<Package Id='*' InstallerVersion='200' Compressed='yes' />
+		<Media Id='1' Cabinet='brightly.cab' EmbedCab='yes' />
+		<Directory Id='TARGETDIR' Name='SourceDir'>
+			<Directory Id='ProgramFilesFolder'>
+				<Directory Id='INSTALLDIR' Name='Brightly'>
+					<Component Id='MainExecutable' Guid='60adea9e-0216-4b45-a7bb-c7913ffb0658'>
+						<File Id='BrightlyEXE' Name='brightly.exe' Source='.\brightly.exe' Vital='yes' />
+						<RemoveFolder Id="INSTALLDIR" On="uninstall" />
+					</Component>
+				</Directory>
+			</Directory>
+		</Directory>
+		<Feature Id='Complete' Level="1">
+			<ComponentRef Id='MainExecutable' />
+		</Feature>
+	</Product>
+</Wix>
