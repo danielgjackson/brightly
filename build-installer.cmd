@@ -30,11 +30,11 @@ ECHO WiX Toolset found at: %WIX_PATH%
 
 :BUILD
 ECHO Building...
-"%WIX_PATH%candle.exe" brightly.wxs
+"%WIX_PATH%candle.exe" -ext WixUtilExtension brightly.wxs
 IF ERRORLEVEL 1 GOTO ERROR
 
 ECHO Building...
-"%WIX_PATH%light.exe" brightly.wixobj
+"%WIX_PATH%light.exe" -ext WixUtilExtension -ext WixUIExtension brightly.wixobj
 IF ERRORLEVEL 1 GOTO ERROR
 
 ECHO Done.
