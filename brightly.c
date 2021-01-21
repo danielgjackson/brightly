@@ -1,5 +1,5 @@
 // Monitor brightness control in the taskbar notification area
-// Dan Jackson, 2020.
+// Dan Jackson, 2020-2021.
 
 #define _WIN32_WINNT 0x0601
 #include <windows.h>
@@ -58,6 +58,7 @@ BOOL gbHasNotifyIcon = FALSE;
 BOOL gbAutoStart = FALSE;
 BOOL gbNotify = TRUE;
 BOOL gbPortable = FALSE;
+BOOL gbAllowDuplicate = FALSE;
 BOOL gbStartMinimized = TRUE;
 BOOL gbSubsystemWindows = FALSE;
 BOOL gbHasConsole = FALSE;
@@ -104,7 +105,7 @@ void DeleteNotificationIcon(void)
 	}
 }
 
-BOOL AddNotificationIcon(HWND hwnd)
+BOOL AddNotificationIcon(HWND hwnd, BOOL duplicateInstance)
 {
 	DeleteNotificationIcon();
 	
@@ -114,13 +115,20 @@ BOOL AddNotificationIcon(HWND hwnd)
 	nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
 	nid.uFlags |= NIS_HIDDEN;
 	nid.dwStateMask = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
-	if (gbNotify)
+	if (gbNotify || duplicateInstance)
 	{
 		nid.uFlags |= NIF_INFO | NIF_REALTIME;
 		_tcscpy(nid.szInfoTitle, TITLE);
-		_tcscpy(nid.szInfo, TEXT("Running in notification area."));
-		nid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
-
+		if (duplicateInstance)
+		{
+			_tcscpy(nid.szInfo, TEXT("Brightly is already running in the notification area."));
+			nid.dwInfoFlags = NIIF_ERROR | NIIF_NOSOUND;
+		}
+		else
+		{
+			_tcscpy(nid.szInfo, TEXT("Running in notification area."));
+			nid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
+		}
 		nid.hBalloonIcon = LoadIcon(ghInstance, TEXT("MAINICON"));
 		nid.dwInfoFlags |= NIIF_LARGE_ICON | NIIF_USER;
 	}
@@ -195,7 +203,13 @@ bool AutoStart(bool change, bool startup)
 
 void ShowContextMenu(HWND hwnd, POINT pt)
 {
-	UINT autoStartFlags = AutoStart(false, false) ? MF_CHECKED : MF_UNCHECKED;
+	UINT autoStartFlags;
+	// Don't touch the registry if running as a portable app
+	if (!gbPortable) {
+		autoStartFlags = AutoStart(false, false) ? MF_CHECKED : MF_UNCHECKED;
+	} else {
+		autoStartFlags = MF_UNCHECKED | MF_GRAYED;
+	}
 
 	HMENU hMenu = CreatePopupMenu();
 	AppendMenu(hMenu, MF_STRING, IDM_OPEN, TEXT("&Open"));
@@ -254,6 +268,33 @@ void SearchMonitors(void)
 	monitorList = MonitorListEnumerate();
 
 	DumpMonitors(stdout, false);
+}
+
+BOOL HasExistingInstance(void)
+{
+    HANDLE hStartEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("Global\\brightly"));
+	DWORD lastError = GetLastError();
+	if (hStartEvent && !lastError)
+	{
+		// We are the first instance
+		_ftprintf(stderr, TEXT("INSTANCE: No other instance found.\n"));
+		hStartEvent = NULL;
+		return FALSE;
+	}
+    else if (hStartEvent && lastError == ERROR_ALREADY_EXISTS)
+	{
+		// There is another instance running
+		_ftprintf(stderr, TEXT("INSTANCE: Another instance found.\n"));
+		CloseHandle(hStartEvent);
+		hStartEvent = NULL;
+		return TRUE;
+	}
+	else
+	{
+		// Otherwise, fail safe and assume not already running
+		_ftprintf(stderr, TEXT("INSTANCE: Problem finding instance.\n"));
+	    return FALSE;
+	}
 }
 
 HFONT hDlgFont = NULL;
@@ -395,7 +436,17 @@ void Startup(HWND hWnd)
 
 	DevicesChanged();
 
-	AddNotificationIcon(ghWndMain);
+	BOOL duplicateInstance;
+	if (gbAllowDuplicate)
+	{
+		duplicateInstance = FALSE;
+	}
+	else
+	{
+		duplicateInstance = HasExistingInstance();
+	}
+	AddNotificationIcon(ghWndMain, duplicateInstance);
+	if (duplicateInstance) gbImmediatelyExit = TRUE;
 
 	if (gbImmediatelyExit) StartExit();
 }
@@ -769,6 +820,8 @@ int run(int argc, TCHAR *argv[], HINSTANCE hInstance, BOOL hasConsole)
 		else if (_tcsicmp(argv[i], TEXT("/NOTIFY")) == 0) { gbNotify = TRUE; }
 		else if (_tcsicmp(argv[i], TEXT("/NONOTIFY")) == 0) { gbNotify = FALSE; }
 		else if (_tcsicmp(argv[i], TEXT("/PORTABLE")) == 0) { gbPortable = TRUE; }
+		else if (_tcsicmp(argv[i], TEXT("/NOPORTABLE")) == 0) { gbPortable = FALSE; }	// Allow override
+		else if (_tcsicmp(argv[i], TEXT("/ALLOWDUPLICATE")) == 0) { gbAllowDuplicate = TRUE; }
 		else if (_tcsicmp(argv[i], TEXT("/EXIT")) == 0) { gbImmediatelyExit = TRUE; }
 		
 		else if (argv[i][0] == '/') 
@@ -796,7 +849,6 @@ int run(int argc, TCHAR *argv[], HINSTANCE hInstance, BOOL hasConsole)
 	if (gbPortable)
 	{
 		_ftprintf(stdout, TEXT("NOTE: Running as a portable app.\n"));
-		// TODO: This doesn't make a difference yet!
 	}
 
 	if (errors)
@@ -896,91 +948,19 @@ int _tmain(int argc, TCHAR *argv[])
 	return run(argc - 1, argv + 1, hInstance, TRUE);
 }
 
-// TODO: Use CommandLineToArgvW() instead?
-int processArgs(TCHAR *args, TCHAR *argv[], int maxArgs) 
-{
-	int argc = 0;
-	argv[0] = NULL;
-	if (args != NULL) 
-	{
-		TCHAR *argStart = args;
-		bool inWhitespace = true;
-		bool inQuotes = false;
-		bool endToken = false;
-		TCHAR *d = args;
-		for (TCHAR *s = args; *s != 0; s++) 
-		{
-			TCHAR c = (TCHAR)(*s);
-			if (inWhitespace && c == '\"') 
-			{
-				inWhitespace = false;
-				inQuotes = true;
-				argStart = s + 1;
-				d = argStart - 1;
-			}
-			else if (inWhitespace && c != ' ' && c != '\t') 
-			{
-				inWhitespace = false;
-				argStart = s;
-				d = argStart;
-			}
-			if (!inWhitespace) 
-			{
-				if (inQuotes && c == '\"' && (*(s+1) == '\0' || *(s+1) == ' ' || *(s+1) == '\t')) 
-				{
-					inQuotes = false;
-					endToken = true;
-				} 
-				else if (inQuotes && c == '\"' && *(s+1) == '\"') 
-				{
-					*d++ = '\"';
-					s++;
-				} 
-				else if (!inQuotes && (c == ' ' || c == '\t')) 
-				{
-					endToken = true;
-				} 
-				else 
-				{
-					*d++ = c;
-				}
-				if (*(s+1) == '\0') 
-				{
-					endToken = true;
-				}
-				if (endToken) 
-				{
-					*d = '\0';
-					if (argc < maxArgs - 1) 
-					{
-						argv[argc] = argStart;
-						argc++;
-						argv[argc] = NULL;
-					}
-					endToken = false;
-					inWhitespace = true;
-					argStart = s + 1; 
-					d = argStart;
-				}
-			}
-		}
-	}
-	return argc;
-}
-
 // Entry point when compiled with Windows subsystem
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
 	gbSubsystemWindows = TRUE;
 	
-	TCHAR *argv[256];
-	int argc = processArgs(lpCmdLine, argv, sizeof(argv) / sizeof(argv[0]));
+	int argc = 0;
+	TCHAR **argv = CommandLineToArgvW(GetCommandLine(), &argc);	// Must be UNICODE for CommandLineToArgvW()
 
 	BOOL bConsoleAttach = FALSE;
 	BOOL bConsoleCreate = FALSE;
 	BOOL hasConsole = FALSE;
-	int argOffset = 0;
-	for (; argc > 0; argc--, argOffset++)
+	int argOffset = 1;
+	for (; argc > argOffset; argOffset++)
 	{
 		if (_tcsicmp(argv[argOffset], TEXT("/CONSOLE:ATTACH")) == 0)
 		{
@@ -1010,5 +990,5 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	if (!hasConsole) {
 		hasConsole = RedirectIOToConsole(bConsoleAttach, bConsoleCreate);
 	}
-	return run(argc, argv + argOffset, hInstance, hasConsole);
+	return run(argc - argOffset, argv + argOffset, hInstance, hasConsole);
 }
