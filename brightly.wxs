@@ -54,6 +54,7 @@
 		<UI>
 			<!-- "WixUI_Minimal" / "WixUI_InstallDir" / "WixUI_Mondo" -->
 			<UIRef Id="WixUI_Mondo" />
+			<UIRef Id="WixUI_ErrorProgressText" />
 			<Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
 		</UI>
 
@@ -61,12 +62,12 @@
 		<Icon Id="brightly.exe" SourceFile="brightly.exe" />
 		
 		<!-- Main settings -->
-		<Feature Id="Complete" Level="1" Display="expand" Title="Brightly Application" Description="Brightly application program file (required)." Absent="disallow" ConfigurableDirectory="INSTALLDIR">
+		<Feature Id="Complete" Level="1" AllowAdvertise="no" Display="expand" Absent="disallow" ConfigurableDirectory="INSTALLDIR" Title="Brightly Application" Description="Brightly application program file (required).">
 			<ComponentRef Id="MainExecutable" />
-			<Feature Id="ProgramShortcut" Level="2" Title="Start Menu Shortcut" Description="Start Menu entry to launch Brightly.">
+			<Feature Id="ProgramShortcut" Level="2" AllowAdvertise="no" Title="Start Menu Shortcut" Description="Start Menu entry to launch Brightly.">
 				<ComponentRef Id="ProgramMenuDir" />
 			</Feature>
-			<Feature Id="ProgramAutostart" Level="3" Title="Auto-Start at user log-in" Description="Each time the user logs-in, automatically start Brightly.">
+			<Feature Id="ProgramAutostart" Level="3" AllowAdvertise="no" Title="Auto-Start at user log-in" Description="Each time the user logs-in, automatically start Brightly.">
 				<ComponentRef Id="Autostart" />
 			</Feature>
 		</Feature>
