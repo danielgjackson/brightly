@@ -14,15 +14,16 @@ IF NOT "!CMDLINE:~-2,1!"==" " GOTO NONINTERACTIVE
 SET INTERACTIVE=1
 :NONINTERACTIVE
 
+:PATH_CANDLE
 SET WIX_PATH=
 SET FIND_CANDLE=
 FOR %%p IN (candle.exe) DO SET "FIND_CANDLE=%%~$PATH:p"
-IF NOT DEFINED FIND_CANDLE GOTO LOCATE
+IF NOT DEFINED FIND_CANDLE GOTO LOCATE_CANDLE
 SET WIX_PATH=%FIND_CANDLE:~0,-10%
 ECHO WiX Toolset located on path: %WIX_PATH%
 GOTO BUILD
 
-:LOCATE
+:LOCATE_CANDLE
 ECHO Searching for WiX Toolset...
 FOR /F "usebackq tokens=*" %%f IN (`DIR /B /ON "%ProgramFiles(x86)%\WiX Toolset*"`) DO IF EXIST "%ProgramFiles(x86)%\%%f\bin\candle.exe" SET "WIX_PATH=%ProgramFiles(x86)%\%%f\bin\"
 IF "%WIX_PATH%"=="" ECHO Cannot find WiX Toolset & GOTO ERROR
@@ -35,6 +36,46 @@ IF ERRORLEVEL 1 GOTO ERROR
 
 ECHO Building...
 "%WIX_PATH%light.exe" -sice:ICE91 -ext WixUtilExtension -ext WixUIExtension brightly.wixobj
+IF ERRORLEVEL 1 GOTO ERROR
+
+
+
+:PATH_WINDOWSKIT
+SET WINDOWSKIT_PATH=
+SET FIND_WINDOWSKIT=
+FOR %%p IN (signtool.exe) DO SET "FIND_WINDOWSKIT=%%~$PATH:p"
+IF NOT DEFINED FIND_WINDOWSKIT GOTO LOCATE_WINDOWSKIT
+SET WIX_PATH=%FIND_WINDOWSKIT:~0,-12%
+ECHO Windows Kit located on path: %WINDOWSKIT_PATH%
+GOTO SIGN
+
+:LOCATE_WINDOWSKIT
+ECHO Searching for Windows Kit...
+FOR /F "usebackq tokens=*" %%f IN (`DIR /B /ON "%ProgramFiles(x86)%\Windows Kits\10\bin\*"`) DO IF EXIST "%ProgramFiles(x86)%\Windows Kits\10\bin\%%f\x64\signtool.exe" SET "WINDOWSKIT_PATH=%ProgramFiles(x86)%\Windows Kits\10\bin\%%f\x64\"
+IF "%WINDOWSKIT_PATH%"=="" ECHO Cannot find Windows Kit & GOTO ERROR
+ECHO Windows Kit found at: %WINDOWSKIT_PATH%
+
+:SIGN
+::: "%WINDOWSKIT_PATH%MakeCert.exe" -$ individual -pe -n "CN=danielgjackson" -sv D:\Certificates\mycert.pvk D:\Certificates\mycert.cer
+::: "%WINDOWSKIT_PATH%Pvk2Pfx.exe" -pvk D:\Certificates\mycert.pvk -spc D:\Certificates\mycert.cer -pfx D:\Certificates\mycert.pfx
+
+SET TIMESTAMP_SERVER=
+::: SET TIMESTAMP_SERVER=/t http://timestamp.verisign.com/scripts/timstamp.dll
+::: SET TIMESTAMP_SERVER=/t http://timestamp.globalsign.com/scripts/timstamp.dll
+::: SET TIMESTAMP_SERVER=/t http://timestamp.comodoca.com/authenticode
+::: SET TIMESTAMP_SERVER=/t http://www.startssl.com/timestamp
+::: SET TIMESTAMP_SERVER=/t http://timestamp.sectigo.com
+::: SET TIMESTAMP_SERVER=/t http://tsa.starfieldtech.com
+::: SET TIMESTAMP_SERVER=/t http://timestamp.digicert.com?alg=sha1
+
+
+rem "%WIX_PATH%insignia.exe" -ib "brightly.msi" -o "engine.exe"
+rem IF ERRORLEVEL 1 GOTO ERROR
+rem "%WINDOWSKIT_PATH%signtool.exe" sign /f "D:\Certificates\mycert.pfx" /d "Brightly Setup" %TIMESTAMP_SERVER% /v "engine.exe"
+rem IF ERRORLEVEL 1 GOTO ERROR
+rem "%WIX_PATH%insignia.exe" -ab "engine.exe" "brightly.msi" -o "brightly.msi"
+rem IF ERRORLEVEL 1 GOTO ERROR
+"%WINDOWSKIT_PATH%signtool.exe" sign /debug /v /a /f "D:\Certificates\mycert.pfx" /d "Brightly" %TIMESTAMP_SERVER% "brightly.msi"
 IF ERRORLEVEL 1 GOTO ERROR
 
 ECHO Done.
