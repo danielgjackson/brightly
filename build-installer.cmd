@@ -34,7 +34,7 @@ ECHO Building...
 IF ERRORLEVEL 1 GOTO ERROR
 
 ECHO Building...
-"%WIX_PATH%light.exe" -ext WixUtilExtension -ext WixUIExtension brightly.wixobj
+"%WIX_PATH%light.exe" -sice:ICE91 -ext WixUtilExtension -ext WixUIExtension brightly.wixobj
 IF ERRORLEVEL 1 GOTO ERROR
 
 ECHO Done.

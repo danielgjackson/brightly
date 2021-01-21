@@ -28,7 +28,7 @@
 			<!-- Auto-start -->
 			<Directory Id="Startup" Name="Auto-start">
 				<Component Id="Autostart" Guid="fbf8dcb2-a09e-4752-8b45-2a0483a228aa">
-					<RegistryValue Id="AutostartReg" Root="HKCU" Action="write" Key="Software\Microsoft\Windows\CurrentVersion\Run" Type="string" Name="Brightly" Value='"[INSTALLDIR]brightly.exe" /AUTOSTART' />
+					<RegistryValue Id="AutostartReg" Root="HKCU" Action="write" Key="Software\Microsoft\Windows\CurrentVersion\Run" Type="string" Name="Brightly" Value="&quot;[INSTALLDIR]brightly.exe&quot; /AUTOSTART" />
 					<Condition>START_FROM_REGISTRY</Condition>
 				</Component>
 			</Directory>
@@ -52,7 +52,8 @@
 		<CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
 		<UI>
-			<!-- <UIRef Id="WixUI_Minimal" /> -->
+			<!-- "WixUI_Minimal" / "WixUI_InstallDir" / "WixUI_Mondo" -->
+			<UIRef Id="WixUI_Mondo" />
 			<Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
 		</UI>
 
@@ -60,20 +61,24 @@
 		<Icon Id="brightly.exe" SourceFile="brightly.exe" />
 		
 		<!-- Main settings -->
-		<Feature Id="Complete" Level="1">
+		<Feature Id="Complete" Level="1" Display="expand" Title="Brightly Application" Description="Brightly application program file (required)." Absent="disallow" ConfigurableDirectory="INSTALLDIR">
 			<ComponentRef Id="MainExecutable" />
-			<ComponentRef Id="ProgramMenuDir" />
-			<ComponentRef Id="Autostart" />
+			<Feature Id="ProgramShortcut" Level="2" Title="Start Menu Shortcut" Description="Start Menu entry to launch Brightly.">
+				<ComponentRef Id="ProgramMenuDir" />
+			</Feature>
+			<Feature Id="ProgramAutostart" Level="3" Title="Auto-Start at user log-in" Description="Each time the user logs-in, automatically start Brightly.">
+				<ComponentRef Id="Autostart" />
+			</Feature>
 		</Feature>
 		<Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 		<Property Id="ARPPRODUCTICON" Value="brightly.exe" />
-		<UIRef Id="WixUI_InstallDir" />
 		<Property Id="WixAppFolder" Value="WixPerUserFolder" /> <!-- "WixPerMachineFolder" / "WixPerUserFolder" -->
 		<WixVariable Id="WixUISupportPerUser" Value="1" />
 		<WixVariable Id="WixUISupportPerMachine" Value="0" />
 		<Property Id="ApplicationFolderName" Value="Brightly" />
 		<!-- <Property Id="ALLUSERS" Value="0" /> -->
 		<Property Id="MSIINSTALLPERUSER" Value="1" />
+		<Property Id="INSTALLLEVEL" Value="3" />
 		 
 		<!-- UI customization -->
 		<WixVariable Id="WixUIBannerBmp" Value="bannrbmp.bmp" />  
