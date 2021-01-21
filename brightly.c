@@ -720,36 +720,47 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-void done(void)
+void done(EXCEPTION_POINTERS *exceptionInfo)
 {
+	if (exceptionInfo)
+	{
+		TCHAR msg[512] = TEXT("");
+		_sntprintf(msg, sizeof(msg) / sizeof(msg[0]), TEXT("ERROR: An unhandled error has occurred."), TITLE);
+		// [/CONSOLE:<ATTACH|CREATE|ATTACH-CREATE>]*  (* only as first parameter)
+		if (gbHasConsole)
+		{
+			_tprintf(msg);
+		}
+		MessageBox(NULL, msg, TITLE, MB_OK | MB_ICONERROR);
+	}
 	_tprintf(TEXT("DONE.\n"));
 }
 
 void finish(void)
 {
 	_tprintf(TEXT("END: Application ended.\n"));
-	done();
+	done(NULL);
 }
 
 LONG WINAPI UnhandledException(EXCEPTION_POINTERS *exceptionInfo)
 {
 	_tprintf(TEXT("END: Unhandled exception.\n"));
-	done();
-	return EXCEPTION_CONTINUE_SEARCH; // EXCEPTION_EXECUTE_HANDLER;
+	done(exceptionInfo);
+	return EXCEPTION_EXECUTE_HANDLER; // EXCEPTION_EXECUTE_HANDLER; // EXCEPTION_CONTINUE_SEARCH;
 }
 
 void SignalHandler(int signal)
 {
 	_tprintf(TEXT("END: Received signal: %d\n"), signal);
 	//if (signal == SIGABRT)
-	done();
+	done(NULL);
 }
 
 BOOL WINAPI consoleHandler(DWORD signal)
 {
 	_tprintf(TEXT("END: Received console control event: %u\n"), (unsigned int)signal);
 	//if (signal == CTRL_C_EVENT)
-	done();
+	done(NULL);
 	return FALSE;
 }
 

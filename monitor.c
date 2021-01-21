@@ -69,13 +69,13 @@ static bool WmiSetBrightness(monitor_t *monitor, int brightness)
 	// Create locator
 	IWbemLocator *locator = NULL;
 	hr = CoCreateInstance(&CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER, &IID_IWbemLocator, (LPVOID *)&locator);
-	if (FAILED(hr)) { fprintf(stderr, "ERROR: Failed CoCreateInstance(CLSID_WbemLocator).\n"); return false; }
+	if (FAILED(hr) || !locator) { fprintf(stderr, "ERROR: Failed CoCreateInstance(CLSID_WbemLocator).\n"); return false; }
 
 	// Connect to WMI
 	IWbemServices *services = NULL;
 	BSTR bstrResource = SysAllocString(L"ROOT\\WMI"); // "\\\\.\\ROOT\\wmi"
 	hr = locator->lpVtbl->ConnectServer(locator, bstrResource, NULL, NULL, NULL, 0, NULL, NULL, &services);
-	if (FAILED(hr)) { fprintf(stderr, "ERROR: Failed ConnectServer().\n"); return false; }
+	if (FAILED(hr) || !services) { fprintf(stderr, "ERROR: Failed ConnectServer().\n"); return false; }
 	SysFreeString(bstrResource);
 
 	// Proxy security levels
@@ -172,13 +172,13 @@ static bool WmiUpdateBrightness(monitor_t *monitorList)
 	// Create locator
 	IWbemLocator *locator = NULL;
 	hr = CoCreateInstance(&CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER, &IID_IWbemLocator, (LPVOID *)&locator);
-	if (FAILED(hr)) { fprintf(stderr, "ERROR: Failed CoCreateInstance(CLSID_WbemLocator).\n"); return false; }
+	if (FAILED(hr) || !locator) { fprintf(stderr, "ERROR: Failed CoCreateInstance(CLSID_WbemLocator).\n"); return false; }
 
 	// Connect to WMI
 	IWbemServices *services = NULL;
 	BSTR bstrResource = SysAllocString(L"ROOT\\WMI"); // "\\\\.\\ROOT\\wmi"
 	hr = locator->lpVtbl->ConnectServer(locator, bstrResource, NULL, NULL, NULL, 0, NULL, NULL, &services);
-	if (FAILED(hr)) { fprintf(stderr, "ERROR: Failed ConnectServer().\n"); return false; }
+	if (FAILED(hr) || !services) { fprintf(stderr, "ERROR: Failed ConnectServer().\n"); return false; }
 	SysFreeString(bstrResource);
 
 	// Proxy security levels
@@ -259,8 +259,8 @@ static bool WmiUpdateBrightness(monitor_t *monitorList)
 
 			result->lpVtbl->Release(result);
 		}
+		results->lpVtbl->Release(results);
 	}
-	results->lpVtbl->Release(results);
 
 	services->lpVtbl->Release(services);
 	locator->lpVtbl->Release(locator);
@@ -275,13 +275,13 @@ static bool EnumWmiMonitors(monitor_t *monitorList)
 	// Create locator
 	IWbemLocator *locator = NULL;
 	hr = CoCreateInstance(&CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER, &IID_IWbemLocator, (LPVOID *)&locator);
-	if (FAILED(hr)) { fprintf(stderr, "ERROR: Failed CoCreateInstance(CLSID_WbemLocator).\n"); return false; }
+	if (FAILED(hr) || !locator) { fprintf(stderr, "ERROR: Failed CoCreateInstance(CLSID_WbemLocator).\n"); return false; }
 
 	// Connect to WMI
 	IWbemServices *services = NULL;
 	BSTR bstrResource = SysAllocString(L"ROOT\\WMI"); // "\\\\.\\ROOT\\wmi"
 	hr = locator->lpVtbl->ConnectServer(locator, bstrResource, NULL, NULL, NULL, 0, NULL, NULL, &services);
-	if (FAILED(hr)) { fprintf(stderr, "ERROR: Failed ConnectServer().\n"); return false; }
+	if (FAILED(hr) || !services) { fprintf(stderr, "ERROR: Failed ConnectServer().\n"); return false; }
 	SysFreeString(bstrResource);
 
 	// Proxy security levels
@@ -358,9 +358,8 @@ static bool EnumWmiMonitors(monitor_t *monitorList)
 
 			result->lpVtbl->Release(result);
 		}
+		results->lpVtbl->Release(results);
 	}
-	results->lpVtbl->Release(results);
-
 	services->lpVtbl->Release(services);
 	locator->lpVtbl->Release(locator);
 	return true;
@@ -598,11 +597,14 @@ monitor_t *MonitorListEnumerate(void)
 	EnumDisplayMonitors(NULL, NULL, MonitorEnumProc, (LPARAM)&state);
 
 	// Enumerate WMI brightness controls (typically for internal panels?) and associate with physical display.
+_tprintf(TEXT("EnumWmiMonitors...\n"));
 	EnumWmiMonitors(state.monitorList);
 
 	// Initial fetch of WMI brightness values
+_tprintf(TEXT("WmiUpdateBrightness...\n"));
 	WmiUpdateBrightness(state.monitorList);
 
+_tprintf(TEXT("...done\n"));
 	return state.monitorList;
 }
 
