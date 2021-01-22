@@ -424,6 +424,11 @@ void DevicesChanged(void)
 void StartExit(void)
 {
 	gbExiting = TRUE;
+	if (ghStartEvent)
+	{
+		CloseHandle(ghStartEvent);
+		ghStartEvent = NULL;
+	}
 	PostMessage(ghWndMain, WM_CLOSE, 0, 0);
 }
 
@@ -695,7 +700,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_CLOSE:
-		if (gbExiting)
+		if (gbExiting && hwnd == ghWndMain)
 		{
 			DestroyWindow(hwnd);
 		}
