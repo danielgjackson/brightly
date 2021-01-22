@@ -105,7 +105,7 @@ void DeleteNotificationIcon(void)
 	}
 }
 
-BOOL AddNotificationIcon(HWND hwnd, BOOL duplicateInstance)
+BOOL AddNotificationIcon(HWND hwnd)
 {
 	DeleteNotificationIcon();
 	
@@ -115,20 +115,12 @@ BOOL AddNotificationIcon(HWND hwnd, BOOL duplicateInstance)
 	nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
 	nid.uFlags |= NIS_HIDDEN;
 	nid.dwStateMask = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
-	if (gbNotify || duplicateInstance)
+	if (gbNotify)
 	{
 		nid.uFlags |= NIF_INFO | NIF_REALTIME;
 		_tcscpy(nid.szInfoTitle, TITLE);
-		if (duplicateInstance)
-		{
-			_tcscpy(nid.szInfo, TEXT("Brightly is already running in the notification area."));
-			nid.dwInfoFlags = NIIF_ERROR | NIIF_NOSOUND;
-		}
-		else
-		{
-			_tcscpy(nid.szInfo, TEXT("Running in notification area."));
-			nid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
-		}
+		_tcscpy(nid.szInfo, TEXT("Running in notification area."));
+		nid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
 		nid.hBalloonIcon = LoadIcon(ghInstance, TEXT("MAINICON"));
 		nid.dwInfoFlags |= NIIF_LARGE_ICON | NIIF_USER;
 	}
@@ -272,11 +264,11 @@ void SearchMonitors(void)
 
 BOOL HasExistingInstance(void)
 {
-    HANDLE hStartEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("Global\\brightly"));
+    HANDLE hStartEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("Local\\brightly"));	// Session namespace is ok (does not need to be Global)
 	DWORD lastError = GetLastError();
 	if (hStartEvent && !lastError)
 	{
-		// We are the first instance
+		// We are the first instance (hold on to the event, it will only be released when the process ends)
 		_ftprintf(stderr, TEXT("INSTANCE: No other instance found.\n"));
 		hStartEvent = NULL;
 		return FALSE;
@@ -434,19 +426,26 @@ void Startup(HWND hWnd)
 
 	ghWndMain = hWnd;
 
-	DevicesChanged();
-
-	BOOL duplicateInstance;
-	if (gbAllowDuplicate)
+	BOOL duplicateInstance = FALSE;
+	int response = 0;
+	do
 	{
-		duplicateInstance = FALSE;
-	}
-	else
-	{
+		if (gbAllowDuplicate) break;
 		duplicateInstance = HasExistingInstance();
+		if (!duplicateInstance) break;
+	    response = MessageBox(NULL, TEXT("Brightly is already running in the notification area.\r\n\r\nIf you continue, you will allow a duplicate instance to run."), TITLE, MB_ICONWARNING | MB_CANCELTRYCONTINUE | MB_DEFBUTTON1);
+		if (response == IDCANCEL)
+		{
+			gbImmediatelyExit = TRUE;
+		}
+	} while (response == IDTRYAGAIN);
+
+	// Only continue normal start-up if not cancelling
+	if (response != IDCANCEL)
+	{
+		DevicesChanged();
+		AddNotificationIcon(ghWndMain);
 	}
-	AddNotificationIcon(ghWndMain, duplicateInstance);
-	if (duplicateInstance) gbImmediatelyExit = TRUE;
 
 	if (gbImmediatelyExit) StartExit();
 }
