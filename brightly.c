@@ -64,6 +64,7 @@ BOOL gbSubsystemWindows = FALSE;
 BOOL gbHasConsole = FALSE;
 BOOL gbImmediatelyExit = FALSE;	// Quit right away (mainly for testing)
 BOOL gbExiting = FALSE;
+HANDLE ghStartEvent = NULL;		// Event for single instance
 int gVersion[4] = { 0, 0, 0, 0 };
 
 NOTIFYICONDATA nid = {0};
@@ -237,6 +238,7 @@ void DumpMonitors(FILE *file, bool details)
 		_ftprintf(file, TEXT("*** MONITOR #%d: %ls [hasBrightness=%d] @%d%%\n"), monitor->index, description, hasBrightness ? 1 : 0, brightness);
 		if (details) MonitorDump(file, monitor);
 
+#if 0
 		// When debugging, just toggle between 50% and 100% on all monitor.
 		if (gbImmediatelyExit)
 		{
@@ -247,6 +249,7 @@ void DumpMonitors(FILE *file, bool details)
 				MonitorSetBrightness(monitor, value);
 			}
 		}
+#endif
 	}
 }
 
@@ -264,28 +267,32 @@ void SearchMonitors(void)
 
 BOOL HasExistingInstance(void)
 {
-    HANDLE hStartEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("Local\\brightly"));	// Session namespace is ok (does not need to be Global)
+	if (ghStartEvent)
+	{
+		CloseHandle(ghStartEvent);
+		ghStartEvent = NULL;
+	}
+	ghStartEvent = CreateEvent(NULL, FALSE, FALSE, TEXT("Local\\brightly"));	// Session namespace is ok (does not need to be Global)
 	DWORD lastError = GetLastError();
-	if (hStartEvent && !lastError)
+	if (ghStartEvent && !lastError)
 	{
 		// We are the first instance (hold on to the event, it will only be released when the process ends)
 		_ftprintf(stderr, TEXT("INSTANCE: No other instance found.\n"));
-		hStartEvent = NULL;
 		return FALSE;
 	}
-    else if (hStartEvent && lastError == ERROR_ALREADY_EXISTS)
+	else if (ghStartEvent && lastError == ERROR_ALREADY_EXISTS)
 	{
 		// There is another instance running
 		_ftprintf(stderr, TEXT("INSTANCE: Another instance found.\n"));
-		CloseHandle(hStartEvent);
-		hStartEvent = NULL;
+		//CloseHandle(ghStartEvent);
+		//ghStartEvent = NULL;
 		return TRUE;
 	}
 	else
 	{
 		// Otherwise, fail safe and assume not already running
 		_ftprintf(stderr, TEXT("INSTANCE: Problem finding instance.\n"));
-	    return FALSE;
+		return FALSE;
 	}
 }
 
@@ -428,23 +435,38 @@ void Startup(HWND hWnd)
 
 	BOOL duplicateInstance = FALSE;
 	int response = 0;
-	do
+	if (!gbAllowDuplicate)
 	{
-		if (gbAllowDuplicate) break;
-		duplicateInstance = HasExistingInstance();
-		if (!duplicateInstance) break;
-	    response = MessageBox(NULL, TEXT("Brightly is already running in the notification area.\r\n\r\nIf you continue, you will allow a duplicate instance to run."), TITLE, MB_ICONWARNING | MB_CANCELTRYCONTINUE | MB_DEFBUTTON1);
-		if (response == IDCANCEL)
+		do
 		{
-			gbImmediatelyExit = TRUE;
-		}
-	} while (response == IDTRYAGAIN);
+			if (gbImmediatelyExit) break;	// Allow duplicates if immediately exiting
+			duplicateInstance = HasExistingInstance();
+			if (!duplicateInstance) break;
+			response = MessageBox(NULL, TEXT("Brightly is already running in the notification area.\r\nContinue to try to exit the previous instance and run this instead."), TITLE, MB_ICONWARNING | MB_CANCELTRYCONTINUE | MB_DEFBUTTON1);
+			if (response == IDCANCEL)
+			{
+				gbNotify = FALSE;
+				gbImmediatelyExit = TRUE;
+			}
 
-	// Only continue normal start-up if not cancelling
+			if (response == IDCONTINUE)
+			{
+				_ftprintf(stderr, TEXT("NOTE: Sending quit message to event holder\n"));
+				SetEvent(ghStartEvent);
+				CloseHandle(ghStartEvent);
+				ghStartEvent = NULL;
+				Sleep(500);
+			}
+		} while (response == IDTRYAGAIN || response == IDCONTINUE);
+	}
+
 	if (response != IDCANCEL)
 	{
 		DevicesChanged();
-		AddNotificationIcon(ghWndMain);
+		if (!gbImmediatelyExit)
+		{
+			AddNotificationIcon(ghWndMain);
+		}
 	}
 
 	if (gbImmediatelyExit) StartExit();
@@ -522,9 +544,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_CTLCOLORSTATIC:
 	{
 		//HDC hdcStatic = (HDC)wParam;
-        //SetTextColor(hdcStatic, RGB(255,255,255));
-        //SetBkColor(hdcStatic, RGB(0,0,0));
-        return (INT_PTR)GetSysColorBrush(COLOR_WINDOW); // CreateSolidBrush(RGB(0,0,0));
+		//SetTextColor(hdcStatic, RGB(255,255,255));
+		//SetBkColor(hdcStatic, RGB(0,0,0));
+		return (INT_PTR)GetSysColorBrush(COLOR_WINDOW); // CreateSolidBrush(RGB(0,0,0));
 	}
 	break;
 
@@ -931,18 +953,53 @@ int run(int argc, TCHAR *argv[], HINSTANCE hInstance, BOOL hasConsole)
 	if (!hWnd) { return -1; }
 
 	HideWindow();  // nCmdShow
-	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0))
-	{
-		// Pre-translate so captured before child controls
-		if (msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE)
-        {
-			HideWindow();
-        }
-		if (!IsDialogMessage(hWnd, &msg))	// handles tabbing etc (avoid WM_USER=DM_GETDEFID / WM_USER+1=DM_SETDEFID)
+
+	for (;;) {
+		BOOL bHasMessage = FALSE;
+		MSG msg;
+
+		// If we are waiting for the quit event to be signalled, use MsgWaitForMultipleObjects() rather than the blocking GetMessage()
+		if (ghStartEvent)
 		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			DWORD wait = WAIT_TIMEOUT;
+			wait = MsgWaitForMultipleObjects(1, &ghStartEvent, FALSE, INFINITE, QS_ALLINPUT);
+			if (wait == WAIT_OBJECT_0)
+			{	// Event signalled
+				_ftprintf(stderr, TEXT("NOTE: Quit event received\n"));
+				StartExit();
+			}
+			else if (wait == WAIT_OBJECT_0 + 1)
+			{	// Message available in queue
+				if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+				{
+					bHasMessage = TRUE;
+				}
+			}
+			else
+			{
+				_ftprintf(stderr, TEXT("ERROR: Unexpected response from MsgWaitForMultipleObjects() = 0x%8x\n"), wait);
+				break;
+			}
+		}
+		else
+		{	// Normal GetMessage() -- could probably list 0 count of events above instead of this special case
+			if (!GetMessage(&msg, NULL, 0, 0)) break;
+			bHasMessage = TRUE;
+		}
+		
+		if (bHasMessage)
+		{
+			// Pre-translate so captured before child controls
+			if (msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE)
+			{
+				HideWindow();
+			}
+			if (!IsDialogMessage(hWnd, &msg))	// handles tabbing etc (avoid WM_USER=DM_GETDEFID / WM_USER+1=DM_SETDEFID)
+			{
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+			if (msg.message == WM_QUIT) break;
 		}
 	}
 
@@ -997,7 +1054,9 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 			break;
 		}
 	}
-	if (!hasConsole) {
+
+	if (!hasConsole)
+	{
 		hasConsole = RedirectIOToConsole(bConsoleAttach, bConsoleCreate);
 	}
 	return run(argc - argOffset, argv + argOffset, hInstance, hasConsole);
