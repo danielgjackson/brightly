@@ -224,6 +224,7 @@ void ShowContextMenu(HWND hwnd, POINT pt)
 	{
 		uFlags |= TPM_LEFTALIGN;
 	}
+	SetForegroundWindow(hwnd); 	// for correct popup tracking
 	TrackPopupMenuEx(hMenu, uFlags, pt.x, pt.y, hwnd, NULL);
 	DestroyMenu(hMenu);
 }
