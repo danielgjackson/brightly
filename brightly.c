@@ -33,6 +33,7 @@
 #pragma comment(lib, "Version.lib")		// GetFileVersionInfoSize(), GetFileVersionInfo(), VerQueryValue()
 #pragma comment(lib, "gdi32.lib")		// CreateFontIndirect()
 #pragma comment(lib, "User32.lib")		// Windows
+#pragma comment(lib, "ole32.lib")		// CoInitialize(), etc.
 #endif
 
 // Missing define in gcc?
