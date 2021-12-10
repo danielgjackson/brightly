@@ -150,8 +150,11 @@ bool AutoStart(bool change, bool startup)
 	TCHAR szModuleFileName[MAX_PATH];
 	GetModuleFileName(NULL, szModuleFileName, sizeof(szModuleFileName) / sizeof(szModuleFileName[0]));
 
-	TCHAR szFileName[MAX_PATH + 32];
-	_sntprintf(szFileName, sizeof(szFileName) / sizeof(szFileName[0]), TEXT("\"%Ts\" /AUTOSTART"), szModuleFileName);
+	TCHAR szQuotedFileName[MAX_PATH + 2];
+	_sntprintf(szQuotedFileName, sizeof(szQuotedFileName) / sizeof(szQuotedFileName[0]), TEXT("\"%Ts\""), szModuleFileName);
+
+	TCHAR szAutoStartValue[MAX_PATH + 32];
+	_sntprintf(szAutoStartValue, sizeof(szAutoStartValue) / sizeof(szAutoStartValue[0]), TEXT("%Ts /AUTOSTART"), szQuotedFileName);
 
 	if (change)
 	{
@@ -163,7 +166,7 @@ bool AutoStart(bool change, bool startup)
 			if (startup)
 			{
 				// Setting to auto-start
-				lErrorCode = RegSetValueEx(hKey, value, 0, REG_SZ, (const BYTE *)szFileName, (_tcslen(szFileName) + 1) * sizeof(TCHAR));
+				lErrorCode = RegSetValueEx(hKey, value, 0, REG_SZ, (const BYTE *)szAutoStartValue, (_tcslen(szAutoStartValue) + 1) * sizeof(TCHAR));
 				if (lErrorCode == ERROR_SUCCESS)
 				{
 					retVal = true;
@@ -183,11 +186,11 @@ bool AutoStart(bool change, bool startup)
 	}
 	else
 	{
-		// Query that the key is set and has the correct value
+		// Query that the key is set and has the correct value prefix
 		TCHAR szData[MAX_PATH];
 		DWORD cbData = sizeof(szData);
 		LSTATUS lErrorCode = RegGetValue(hKeyMain, subKey, value, RRF_RT_REG_SZ, NULL, &szData, &cbData);
-		if (lErrorCode == ERROR_SUCCESS && _tcscmp(szData, szFileName) == 0) {
+		if (lErrorCode == ERROR_SUCCESS && _tcsncmp(szData, szQuotedFileName, _tcslen(szQuotedFileName)) == 0) {
 			retVal = true;
 		}
 	}
@@ -629,7 +632,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 					_sntprintf(szHeader, sizeof(szHeader) / sizeof(szHeader[0]), TEXT("%s V%d.%d.%d"), TITLE, gVersion[0], gVersion[1], gVersion[2]);
 					TCHAR *szContent = TEXT("Monitor brightness adjustment in the taskbar notification area.");
 					//TCHAR *szExtraInfo = TEXT("...");
-					TCHAR *szFooter = TEXT("Open source under <a href=\"https://github.com/danielgjackson/brightly/blob/master/LICENSE.txt\">MIT License</a>, \u00A92020 Daniel Jackson.");
+					TCHAR *szFooter = TEXT("Open source under <a href=\"https://github.com/danielgjackson/brightly/blob/master/LICENSE.txt\">MIT License</a>, \u00A92020-2021 Daniel Jackson.");
 					TASKDIALOG_BUTTON aCustomButtons[] = {
 						{ 1001, L"Project page\ngithub.com/danielgjackson/brightly" },
 						{ 1002, L"Check for updates\nSee the latest release" },
@@ -899,7 +902,7 @@ int run(int argc, TCHAR *argv[], HINSTANCE hInstance, BOOL hasConsole)
 	if (bShowHelp) 
 	{
 		TCHAR msg[512] = TEXT("");
-		_sntprintf(msg, sizeof(msg) / sizeof(msg[0]), TEXT("%s V%d.%d.%d  Daniel Jackson, 2020.\n\nUsage: [/NOMIN|/MIN]\n\n"), TITLE, gVersion[0], gVersion[1], gVersion[2]);
+		_sntprintf(msg, sizeof(msg) / sizeof(msg[0]), TEXT("%s V%d.%d.%d  Daniel Jackson, 2020-2021.\n\nUsage: [/NOMIN|/MIN]\n\n"), TITLE, gVersion[0], gVersion[1], gVersion[2]);
 		// [/CONSOLE:<ATTACH|CREATE|ATTACH-CREATE>]*  (* only as first parameter)
 		if (gbHasConsole)
 		{
