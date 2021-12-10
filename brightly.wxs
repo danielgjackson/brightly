@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Change the Product/@Id on any installation file changes. Modify the Product Version for any minor changes. -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-	<Product Name="Brightly" Id="*" UpgradeCode="bd5e84a7-0a08-4454-bb60-ce75fab29949" Language="1033" Version="1.0.3.0" Manufacturer="danielgjackson">
+	<Product Name="Brightly" Id="*" UpgradeCode="bd5e84a7-0a08-4454-bb60-ce75fab29949" Language="1033" Version="!(bind.FileVersion.brightlyEXE)" Manufacturer="danielgjackson">
 		<Package Id="*" InstallerVersion="200" Compressed="yes" InstallScope="perUser" /><!-- "perMachine" / "perUser" -->
 		
 		<MajorUpgrade AllowDowngrades="yes" /><!-- AllowSameVersionUpgrades="yes" -->
