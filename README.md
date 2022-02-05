@@ -1,12 +1,32 @@
 # Brightly
 
+*Utility to adjust external monitor and internal screen brightness.*
+
 ![Screenshot showing the application icon in the notification area, and a pop-up window with per-monitor brightness adjustment sliders](screenshot.png)
 
 Windows includes built-in adjustment for internal screens (e.g. laptops), but not typically for external monitors.
 
 This program places an icon in the Windows taskbar notification area (system tray) to adjust display brightness, both for external monitors (via DDC/CI) and internal screens (via WMI).
 
-Usage: Download from [Releases](https://github.com/danielgjackson/brightly/releases/latest) and run the program `brightly.exe`. An icon for *Brightly* will appear in the taskbar notification area. Left-click the icon to show sliders for brightness for connected displays (screens that do not support brightness adjustment over DDC/CI or WMI will be greyed out).  
+
+## Download
+
+Download from:
+
+  * [Releases](https://github.com/danielgjackson/brightly/releases/latest)
+
+...you can choose the `.msi` installer, or directly download and run the `.exe` file.
+
+The source code is available at:
+
+  * [github.com/danielgjackson/brightly](https://github.com/danielgjackson/brightly)
+
+...and released under an open source [MIT License](https://github.com/danielgjackson/brightly/blob/master/LICENSE.txt).
+
+
+## Usage
+
+When you run *Brightly* (it can be configured to auto-run), an icon for *Brightly* will appear in the taskbar notification area. Left-click the icon to show sliders for brightness for connected displays (screens that do not support brightness adjustment over DDC/CI or WMI will be greyed out).  
 
 Right-click the icon for a menu:
 
@@ -17,3 +37,6 @@ Right-click the icon for a menu:
 * *About* - Information about the program.
 * *Exit* - Stops the program and removes the icon. (If *Auto-Start* is enabled, it will start when you log-in again)
 
+---
+
+  * [danielgjackson.github.io/brightly](https://danielgjackson.github.io/brightly)
