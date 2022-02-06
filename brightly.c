@@ -38,11 +38,6 @@
 #pragma comment(lib, "ole32.lib")		// CoInitialize(), etc.
 #endif
 
-// Missing define in gcc?
-#ifndef _MSC_VER
-extern int _dup2(int fd1, int fd2);
-#endif
-
 // Defines
 #define TITLE TEXT("Brightly")
 #define TITLE_L L"Brightly"
