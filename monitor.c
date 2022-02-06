@@ -348,7 +348,7 @@ static bool EnumWmiMonitors(monitor_t *monitorList)
 			}
 			if (thisMonitor)
 			{
-				_tcscpy(thisMonitor->wmiInstance, vtInstanceName.bstrVal);
+				_tcscpy_s(thisMonitor->wmiInstance, _countof(thisMonitor->wmiInstance), vtInstanceName.bstrVal);
 			}
 
 			VariantClear(&vtInstanceName);
@@ -519,7 +519,7 @@ static BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hDC, LPRECT lpRect, 
 	PHYSICAL_MONITOR *physicalMonitors = (PHYSICAL_MONITOR *)malloc(dwNumberOfPhysicalMonitors * sizeof(PHYSICAL_MONITOR));
 	bResult = GetPhysicalMonitorsFromHMONITOR(hMonitor, dwNumberOfPhysicalMonitors, physicalMonitors);
 	if (!bResult) { fprintf(stderr, "ERROR: Failed GetPhysicalMonitorsFromHMONITOR().\n"); return TRUE; }	// continue anyway
-	for (int i = 0; i < dwNumberOfPhysicalMonitors; i++)
+	for (DWORD i = 0; i < dwNumberOfPhysicalMonitors; i++)
 	{
 		//_tprintf(TEXT("---\n"));
 		monitor_t *newMonitor = (monitor_t *)malloc(sizeof(monitor_t));

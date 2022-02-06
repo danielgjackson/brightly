@@ -2,6 +2,7 @@
 // Dan Jackson, 2020-2021.
 
 #define _WIN32_WINNT 0x0601
+#define _CRT_SECURE_NO_WARNINGS  // TODO: Use more secure versions
 #include <windows.h>
 #include <tchar.h>
 
@@ -10,6 +11,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <time.h>
+#include <io.h>
 
 #include <rpc.h>
 #include <dbt.h>
@@ -43,6 +45,7 @@ extern int _dup2(int fd1, int fd2);
 
 // Defines
 #define TITLE TEXT("Brightly")
+#define TITLE_L L"Brightly"
 #define WMAPP_NOTIFYCALLBACK (WM_APP + 1)
 #define IDM_OPEN		101
 #define IDM_REFRESH		102
@@ -166,7 +169,7 @@ bool AutoStart(bool change, bool startup)
 			if (startup)
 			{
 				// Setting to auto-start
-				lErrorCode = RegSetValueEx(hKey, value, 0, REG_SZ, (const BYTE *)szAutoStartValue, (_tcslen(szAutoStartValue) + 1) * sizeof(TCHAR));
+				lErrorCode = RegSetValueEx(hKey, value, 0, REG_SZ, (const BYTE *)szAutoStartValue, (DWORD)((_tcslen(szAutoStartValue) + 1) * sizeof(TCHAR)));
 				if (lErrorCode == ERROR_SUCCESS)
 				{
 					retVal = true;
@@ -338,7 +341,8 @@ void CreateControls(void)
 		int y = yMargin + numMonitors * yStep;
 
 		// Create components
-		HWND hWndLabel = CreateWindowEx(0, TEXT("STATIC"), MonitorGetDescription(monitor), WS_VISIBLE | WS_CHILD | SS_ENDELLIPSIS, 10, y, width, 20, hWnd, (HMENU)(intptr_t)(ID_LABEL_BASE + numMonitors), hInstance, NULL);
+		const wchar_t *description = MonitorGetDescription(monitor);
+		HWND hWndLabel = CreateWindowExW(0, L"STATIC", description, WS_VISIBLE | WS_CHILD | SS_ENDELLIPSIS, 10, y, width, 20, hWnd, (HMENU)(intptr_t)(ID_LABEL_BASE + numMonitors), hInstance, NULL);
 		SendMessage(hWndLabel, WM_SETFONT, (WPARAM)hDlgFont, MAKELPARAM(FALSE, 0));
 
 		HWND hWndTrack = CreateWindowEx(0, TRACKBAR_CLASS, TEXT("Trackbar Control"), WS_CHILD | WS_VISIBLE | TBS_HORZ | WS_TABSTOP | TBS_AUTOTICKS | TBS_DOWNISLEFT, 10, y + 20, width, 30, hWnd, (HMENU)(intptr_t)(ID_TRACKBAR_BASE + numMonitors), hInstance, NULL); 
@@ -593,7 +597,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 					openFilename.lpstrFile = szFileName;
 					openFilename.nMaxFile = sizeof(szFileName) / sizeof(*szFileName);
 					openFilename.Flags = OFN_SHOWHELP | OFN_OVERWRITEPROMPT;
-					openFilename.lpstrDefExt = (LPCWSTR)L"txt";
+					openFilename.lpstrDefExt = TEXT("txt");
 					openFilename.lpstrTitle = TITLE;
 
 					// Write file to temp folder
@@ -627,12 +631,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			case IDM_ABOUT:
 				{
-					TCHAR *szTitle = TEXT("About " TITLE);
-					TCHAR szHeader[128] = TEXT("");
-					_sntprintf(szHeader, sizeof(szHeader) / sizeof(szHeader[0]), TEXT("%s V%d.%d.%d"), TITLE, gVersion[0], gVersion[1], gVersion[2]);
-					TCHAR *szContent = TEXT("Monitor brightness adjustment in the taskbar notification area.");
-					//TCHAR *szExtraInfo = TEXT("...");
-					TCHAR *szFooter = TEXT("Open source under <a href=\"https://github.com/danielgjackson/brightly/blob/master/LICENSE.txt\">MIT License</a>, \u00A92020-2021 Daniel Jackson.");
+					wchar_t *szTitle = L"About " TITLE_L;
+					wchar_t szHeader[128] = L"";
+					_snwprintf(szHeader, sizeof(szHeader) / sizeof(szHeader[0]), L"%s V%d.%d.%d", TITLE_L, gVersion[0], gVersion[1], gVersion[2]);
+					wchar_t *szContent = L"Monitor brightness adjustment in the taskbar notification area.";
+					//wchar_t *szExtraInfo = L"...";
+					wchar_t *szFooter = L"Open source under <a href=\"https://github.com/danielgjackson/brightly/blob/master/LICENSE.txt\">MIT License</a>, \u00A92020-2021 Daniel Jackson.";
 					TASKDIALOG_BUTTON aCustomButtons[] = {
 						{ 1001, L"Project page\ngithub.com/danielgjackson/brightly" },
 						{ 1002, L"Check for updates\nSee the latest release" },
@@ -729,7 +733,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				int index = id - ID_TRACKBAR_BASE;
 				int value;
 				// if (LOWORD(wParam) == TB_THUMBPOSITION || LOWORD(wParam) == TB_THUMBTRACK) value = HIWORD(wParam);
-				value = SendMessage(hWndControl, TBM_GETPOS, 0, 0);
+				value = (int)SendMessage(hWndControl, TBM_GETPOS, 0, 0);
 				//_tprintf(TEXT("#%d @%d\n"), index, value);
 				int i = 0;
 				for (monitor_t *monitor = monitorList; monitor != NULL; monitor = monitor->next)
@@ -756,7 +760,7 @@ void done(EXCEPTION_POINTERS *exceptionInfo)
 	if (exceptionInfo)
 	{
 		TCHAR msg[512] = TEXT("");
-		_sntprintf(msg, sizeof(msg) / sizeof(msg[0]), TEXT("ERROR: An unhandled error has occurred."), TITLE);
+		_sntprintf(msg, sizeof(msg) / sizeof(msg[0]), TEXT("ERROR: An unhandled error has occurred."));
 		// [/CONSOLE:<ATTACH|CREATE|ATTACH-CREATE>]*  (* only as first parameter)
 		if (gbHasConsole)
 		{
@@ -1031,7 +1035,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	gbSubsystemWindows = TRUE;
 	
 	int argc = 0;
-	TCHAR **argv = CommandLineToArgvW(GetCommandLine(), &argc);	// Must be UNICODE for CommandLineToArgvW()
+	TCHAR **argv = CommandLineToArgvW(GetCommandLine(), &argc);	// UNICODE must be defined for CommandLineToArgvW()
 
 	BOOL bConsoleAttach = FALSE;
 	BOOL bConsoleCreate = FALSE;
@@ -1054,7 +1058,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		}
 		else if (_tcsicmp(argv[argOffset], TEXT("/CONSOLE:DEBUG")) == 0)	// Use existing console
 		{
-			_dup2(fileno(stderr), fileno(stdout));	// stdout to stderr (stops too much interleaving from buffering while debugging)
+			_dup2(_fileno(stderr), _fileno(stdout));	// stdout to stderr (stops too much interleaving from buffering while debugging)
 			fflush(stdout);
 			hasConsole = TRUE;
 		}
